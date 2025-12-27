@@ -63,13 +63,8 @@ src/
 mvn clean install
 ```
 
-## Running Tests
+[![](https://jitpack.io/v/kkag840/exception-handler.svg)](https://jitpack.io/#kkag840/exception-handler)
 
-```bash
-mvn test
-```
 
-## License
 
-MIT License
 
