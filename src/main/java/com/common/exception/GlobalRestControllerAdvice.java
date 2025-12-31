@@ -8,6 +8,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -108,32 +109,33 @@ public class GlobalRestControllerAdvice {
 	}
 
 	@ExceptionHandler(HandlerMethodValidationException.class)
-	public ResponseEntity<ExceptionResponse> handleMethodValidationException(final HandlerMethodValidationException exc, final WebRequest request) {
-		log.info("**** GlobalRestControllerAdvice ::: handleMethodValidationException :: Error Message : {} ****", exc.getMessage());
+	public ResponseEntity<ExceptionResponse> handleMethodValidationException(final HandlerMethodValidationException ex, final WebRequest request) {
+		log.info("**** GlobalRestControllerAdvice ::: handleMethodValidationException :: Error Message : {} ****", ex.getMessage());
 
 		Locale currentLocale = getLocaleFromRequest(request);
 		LocaleContextHolder.setLocale(currentLocale);
 
-		List<String> validationErrors = exc.getParameterValidationResults()
-				.stream()
-				.flatMap(result -> result.getResolvableErrors().stream()
-						.map(error -> {
-							String parameterName = result.getMethodParameter().getParameter().getName();
-							return parameterName + ": " + error.getDefaultMessage();
-						})
-				)
-				.collect(Collectors.toList());
+        List<String> validationErrors = ex.getAllValidationResults()
+                .stream()
+                .flatMap(result -> result.getResolvableErrors().stream()
+                        .map(error -> {
+                            String paramName = result.getMethodParameter()
+                                    .getParameterName();
+                            return paramName + ": " + error.getDefaultMessage();
+                        })
+                )
+                .toList();
 
-		ExceptionResponse exceptionMessageObj = new ExceptionResponse();
-		exceptionMessageObj.setStatus(HttpStatus.BAD_REQUEST.value());
-		exceptionMessageObj.setCode(DefaultErrorCodes.VALIDATION_FAILED.getValue());
-		exceptionMessageObj.setMessage(exc.getMessage());
-		exceptionMessageObj.setError(exc.getClass().getCanonicalName());
-		exceptionMessageObj.setErrors(validationErrors);
-		exceptionMessageObj.setPath(((ServletWebRequest) request).getRequest().getServletPath());
+        ExceptionResponse response = new ExceptionResponse();
+        response.setStatus(HttpStatus.BAD_REQUEST.value());
+        response.setCode(DefaultErrorCodes.VALIDATION_FAILED.getValue());
+        response.setMessage("Validation failed");
+        response.setError(ex.getClass().getCanonicalName());
+        response.setErrors(validationErrors);
+        response.setPath(((ServletWebRequest) request).getRequest().getServletPath());
 
-		return new ResponseEntity<>(exceptionMessageObj, new HttpHeaders(), HttpStatus.BAD_REQUEST);
-	}
+        return ResponseEntity.badRequest().body(response);
+    }
 
 	@ExceptionHandler(HttpMessageNotReadableException.class)
 	public ResponseEntity<ExceptionResponse> handleHttpMessageNotReadableException(final HttpMessageNotReadableException exc, final WebRequest request) {
